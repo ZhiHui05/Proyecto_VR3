@@ -42,7 +42,7 @@ while True:
     # Capta desde amarillo puro hasta verde intenso (H: 20 a 85)
     lower_yellow_green = np.array([20, 100, 100])
     upper_yellow_green = np.array([85, 255, 255])
-    mask2 = cv2.inRange(hsv, lower_green, upper_green)
+    mask2 = cv2.inRange(hsv, lower_yellow_green, upper_yellow_green)
 
 
     mask = mask1 + mask2
@@ -56,8 +56,9 @@ while True:
         # Dibujar un círculo en el centro detectado
         cv2.circle(frame, (cx, cy), 10, (0, 255, 0), -1)
         
-        # Enviar coordenadas a Unity (formato "x,y")
-        data = f"{cx},{cy}"
+        # Enviar coordenadas al entorno (formato "x,y,w,h")
+        frame_h, frame_w = frame.shape[:2]
+        data = f"{cx},{cy},{frame_w},{frame_h}"
         sock.sendto(data.encode(), (udp_ip, udp_port))
         print(f"Enviando: {data}")
 

@@ -24,6 +24,21 @@ while True:
     mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
     mask = mask1 + mask2
 
+    # RANGO AMARILLO (suele ser único rango)
+    # H: 20-35 | S: 100-255 | V: 100-255
+    lower_yellow = np.array([20, 100, 100])
+    upper_yellow = np.array([35, 255, 255])
+
+    # RANGO VERDE/VERDOSO
+    # H: 35-85 | S: 100-255 | V: 100-255
+    lower_green = np.array([36, 100, 100])
+    upper_green = np.array([85, 255, 255])
+
+    # RANGO COMBINADO (AMARILLO + VERDE)
+    # Capta desde amarillo puro hasta verde intenso (H: 20 a 85)
+    lower_yellow_green = np.array([20, 100, 100])
+    upper_yellow_green = np.array([85, 255, 255])
+
     # Limpiar ruido
     kernel = np.ones((5,5), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)

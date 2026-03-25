@@ -1,9 +1,11 @@
-"""
+﻿"""
 Clase principal del juego (Game).
 Controla el bucle principal, gestión de eventos, actualizaciones de estado y renderizado.
 """
 import pygame
 import argparse
+import socket
+import json
 from typing import List, Tuple
 from entities import FlyingShape, SplitHalf, SlashParticle
 from input_handler import InputHandler
@@ -28,6 +30,10 @@ class Game:
         # En modo AR no necesitamos el socket UDP a menos que queramos input externo adicional
         # Evita conflictos de puerto si ejecutamos game.py directamente en modo AR
         self.input_handler = InputHandler(use_socket=use_udp_input)
+        
+        # Socket para enviar estado al Tracker (Feedback AR)
+        self.sender_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.tracker_address = ("127.0.0.1", 5006)
         
         # Game constants
         self.gravity = 980.0
@@ -108,15 +114,54 @@ class Game:
             self.shapes.append(FlyingShape.create_random(self.width, self.height))
             self.spawn_timer -= current_spawn_interval
 
+        # Enviar estado del juego al tracker
+        self._send_game_state()
+
         # Update shapes
         for shape in self.shapes:
             shape.update(dt, self.gravity)
 
         # Collisions
         self._check_collisions(dt)
-
-        # Cleanup out of bounds
+        
+        # Cleanup
         self._cleanup_entities(dt)
+
+
+    def _send_game_state(self):
+        """Envía la lista de objetos activos al tracker vía UDP para visualización remota."""
+        entities = []
+        for s in self.shapes:
+            entities.append({
+                "x": int(s.x),
+                "y": int(s.y),
+                "r": int(s.radius),
+                "c": s.color,
+                "type": "bomb" if s.is_bomb else "fruit"
+            })
+        
+        # Enviamos también las dimensiones para poder escalar en el otro lado
+        halves = []
+        for h in self.split_halves:
+            halves.append({
+                "x": int(h.x),
+                "y": int(h.y),
+                "r": int(h.radius),
+                "c": h.color
+            })
+
+        state = {
+            "width": self.width,
+            "height": self.height,
+            "entities": entities,
+            "halves": halves
+        }
+        
+        try:
+            msg = json.dumps(state)
+            self.sender_sock.sendto(msg.encode(), self.tracker_address)
+        except Exception:
+            pass
 
     def _check_collisions(self, dt: float):
         to_remove = set()
@@ -184,88 +229,56 @@ class Game:
                 bg = pygame.transform.scale(self.background_surface, (self.width, self.height))
                 self.screen.blit(bg, (0, 0))
             else:
-                self.screen.blit(self.background_surface, (0, 0))
+                self.screen.blit(self.background_surface, (0,0))
         else:
             self.screen.fill(self.background_color)
-            
+
+        # Draw Fruits/Bombs
         for shape in self.shapes:
             shape.draw(self.screen)
-
+        
+        # Draw Split Halves
         for half in self.split_halves:
             half.draw(self.screen)
-
+            
+        # Draw Particles
         for p in self.particles:
             p.draw(self.screen)
-
-        # Draw trail
+        
+        # Draw Trail
         if len(self.trail) >= 2:
-            for i in range(1, len(self.trail)):
-                t = i / len(self.trail)
-                width_line = int(2 + t * 6)
-                color = (int(90 + 110 * t), int(200 + 40 * t), 255)
-                pygame.draw.line(self.screen, color, self.trail[i - 1], self.trail[i], width=width_line)
+            pygame.draw.lines(self.screen, (200, 200, 255), False, self.trail, 3)
 
-        # Draw pointer
-        pygame.draw.circle(self.screen, (80, 170, 255), (self.pointer_x, self.pointer_y), 10)
-        pygame.draw.circle(self.screen, (220, 240, 255), (self.pointer_x, self.pointer_y), 18, width=2)
-        
-        # Calculate current difficulty for display
-        difficulty_t = clamp(self.elapsed_time / self.difficulty_ramp_seconds, 0.0, 1.0)
-        
+        # Draw Sword Cursor
+        pygame.draw.circle(self.screen, (100, 255, 100), (self.pointer_x, self.pointer_y), 10, 2)
+        pygame.draw.circle(self.screen, (255, 255, 255), (self.pointer_x, self.pointer_y), 3)
+
         # UI
-        info = [
-            "Control: tracker UDP 127.0.0.1:5005",
-            "Bomba (X): al cortarla pierdes 1 vida",
-            f"Longitud traza: {self.trail_length}",
-            f"Dificultad: {int(difficulty_t * 100)}%",
-            f"Score: {self.score}",
-            f"Vidas: {self.lives}",
-            "Salir: ESC o cerrar ventana",
-        ]
-        for i, text in enumerate(info):
-            line = self.font.render(text, True, (235, 235, 235))
-            self.screen.blit(line, (16, 16 + i * 26))
-
+        score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
+        self.screen.blit(score_text, (20, 20))
+        
+        lives_text = self.font.render(f"Lives: {self.lives}", True, (255, 100, 100))
+        self.screen.blit(lives_text, (self.width - 120, 20))
+        
         if self.game_over:
-            overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 130))
-            self.screen.blit(overlay, (0, 0))
-
-            game_over_text = self.game_over_font.render("GAME OVER", True, (255, 95, 95))
-            sub_text = self.game_over_sub_font.render("Reiniciando...", True, (240, 240, 240))
-
-            game_over_rect = game_over_text.get_rect(center=(self.width // 2, self.height // 2 - 20))
-            sub_rect = sub_text.get_rect(center=(self.width // 2, self.height // 2 + 32))
-
-            self.screen.blit(game_over_text, game_over_rect)
-            self.screen.blit(sub_text, sub_rect)
+            go_text = self.game_over_font.render("GAME OVER", True, (255, 50, 50))
+            w, h = go_text.get_size()
+            self.screen.blit(go_text, (self.width//2 - w//2, self.height//2 - h//2 - 20))
+            
+            sub_text = self.game_over_sub_font.render("Reiniciando...", True, (200, 200, 200))
+            sw, sh = sub_text.get_size()
+            self.screen.blit(sub_text, (self.width//2 - sw//2, self.height//2 + h//2 + 10))
 
         pygame.display.flip()
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Demo pygame: corte de figuras con la trayectoria del raton.')
-    parser.add_argument('--width', type=int, default=1280, help='Ancho de la ventana.')
-    parser.add_argument('--height', type=int, default=720, help='Alto de la ventana.')
-    parser.add_argument('--trail-length', type=int, default=36, help='Cantidad de puntos visibles en la traza.')
-    parser.add_argument('--ar', action='store_true', help='Activar modo Realidad Aumentada con cámara.')
-    parser.add_argument('--projection', action='store_true', help='Modo proyección: fondo negro, sin mostrar vídeo de cámara.')
-    parser.add_argument('--camera-id', type=int, default=1, help='ID de la cámara para AR.')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Demo Fruit Ninja (OOP Split)")
+    parser.add_argument("--width", type=int, default=1280, help="Ancho de pantalla")
+    parser.add_argument("--height", type=int, default=720, help="Ancho de pantalla")
+    parser.add_argument("--trail", type=int, default=15, help="Longitud de estela")
+    parser.add_argument("--no-udp", action="store_true", help="Desactivar input remoto UDP")
+    
     args = parser.parse_args()
-
-    if args.width <= 100 or args.height <= 100:
-        raise ValueError('--width y --height deben ser mayores a 100')
-    if args.trail_length < 6:
-        raise ValueError('--trail-length debe ser al menos 6')
-    return args
-
-if __name__ == '__main__':
-    arguments = parse_args()
-
-    # Si se pide modo projection, forzamos fondo negro
-    game = Game(arguments.width, arguments.height, arguments.trail_length, use_udp_input=True)
     
-    if arguments.projection:
-        game.background_color = (0, 0, 0)
-        # En modo proyección separado, necesitamos escuchar UDP siempre para recibir datos del tracker externo
-    
+    game = Game(args.width, args.height, args.trail, use_udp_input=not args.no_udp)
     game.run()

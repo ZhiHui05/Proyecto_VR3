@@ -8,29 +8,57 @@ from typing import Tuple, Optional
 from utils import clamp
 
 class InputHandler:
-    def __init__(self, port: int = 5005):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind(("127.0.0.1", port))
-        self.sock.setblocking(False)
+    def __init__(self, port: int = 5005, use_socket: bool = True):
+        self.use_socket = use_socket
+        self.sock = None
+        if self.use_socket:
+            try:
+                self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                self.sock.setblocking(False)
+                self.sock.bind(("0.0.0.0", port))
+                print(f"[InputHandler] Escuchando UDP en puerto {port}")
+            except OSError as e:
+                print(f"[InputHandler] No se pudo iniciar socket UDP en puerto {port}: {e}")
+                print("[InputHandler] Continuando sin entrada remota UDP.")
+                self.sock = None
+                self.use_socket = False
 
     def close(self):
-        self.sock.close()
+        if self.sock:
+            try:
+                self.sock.close()
+            except:
+                pass
+            self.sock = None
 
     def get_pointer_position(self, current_x: int, current_y: int, width: int, height: int) -> Tuple[int, int]:
         px, py = current_x, current_y
+        
+        if not self.use_socket or not self.sock:
+            return px, py
+
         while True:
             try:
                 packet, _ = self.sock.recvfrom(128)
+                msg = packet.decode("utf-8", errors="ignore")
+                parsed = self._parse_tracker_message(msg)
+                
+                if parsed is not None:
+                    # Update local variable to last valid packet in queue
+                    tx, ty, source_w, source_h = parsed
+                    # Opcional: convertir coordenadas
+                    # px, py = self._map_to_screen(...) 
+                    # Simplemente usaremos las recibidas si vienen normalizadas o ajustarlas
+                    if source_w > 0:
+                        px = int((tx / source_w) * width)
+                        py = int((ty / source_h) * height)
+                    else:
+                        px, py = int(tx), int(ty)
             except BlockingIOError:
                 break
-            
-            parsed = self._parse_tracker_message(packet.decode("utf-8", errors="ignore"))
-            if parsed is None:
-                continue
-            
-            tx, ty, source_w, source_h = parsed
-            px, py = self._map_to_screen(tx, ty, source_w, source_h, width, height)
-            
+            except Exception:
+                break
+                
         return px, py
 
     def _parse_tracker_message(self, message: str) -> Optional[Tuple[float, float, float, float]]:

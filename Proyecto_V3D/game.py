@@ -3,13 +3,14 @@ Clase principal del juego (Game).
 Controla el bucle principal, gestión de eventos, actualizaciones de estado y renderizado.
 """
 import pygame
+import argparse
 from typing import List, Tuple
 from entities import FlyingShape, SplitHalf, SlashParticle
 from input_handler import InputHandler
 from utils import clamp, segment_intersects_circle
 
 class Game:
-    def __init__(self, width: int, height: int, trail_length: int):
+    def __init__(self, width: int, height: int, trail_length: int, use_udp_input: bool = True):
         pygame.init()
         pygame.display.set_caption("Demo Fruit Ninja (OOP Split) - control con raton")
         
@@ -24,7 +25,9 @@ class Game:
         
         pygame.mouse.set_visible(False)
         
-        self.input_handler = InputHandler()
+        # En modo AR no necesitamos el socket UDP a menos que queramos input externo adicional
+        # Evita conflictos de puerto si ejecutamos game.py directamente en modo AR
+        self.input_handler = InputHandler(use_socket=use_udp_input)
         
         # Game constants
         self.gravity = 980.0
@@ -39,6 +42,10 @@ class Game:
         self.game_over_timer = 0.0
         self.pointer_x = width // 2
         self.pointer_y = height // 2
+        
+        # Estructura para fondo dinámico (AR)
+        self.background_surface = None
+        self.background_color = (18, 18, 22) # Default dark background
         
         self.reset_game_state()
 
@@ -170,8 +177,17 @@ class Game:
         self.split_halves = active_halves
 
     def _draw(self):
-        self.screen.fill((18, 18, 22))
-
+        # Dibujar fondo (AR o Color sólido)
+        if self.background_surface is not None:
+            # Escalar si es necesario
+            if self.background_surface.get_size() != (self.width, self.height):
+                bg = pygame.transform.scale(self.background_surface, (self.width, self.height))
+                self.screen.blit(bg, (0, 0))
+            else:
+                self.screen.blit(self.background_surface, (0, 0))
+        else:
+            self.screen.fill(self.background_color)
+            
         for shape in self.shapes:
             shape.draw(self.screen)
 
@@ -225,3 +241,31 @@ class Game:
             self.screen.blit(sub_text, sub_rect)
 
         pygame.display.flip()
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description='Demo pygame: corte de figuras con la trayectoria del raton.')
+    parser.add_argument('--width', type=int, default=1280, help='Ancho de la ventana.')
+    parser.add_argument('--height', type=int, default=720, help='Alto de la ventana.')
+    parser.add_argument('--trail-length', type=int, default=36, help='Cantidad de puntos visibles en la traza.')
+    parser.add_argument('--ar', action='store_true', help='Activar modo Realidad Aumentada con cámara.')
+    parser.add_argument('--projection', action='store_true', help='Modo proyección: fondo negro, sin mostrar vídeo de cámara.')
+    parser.add_argument('--camera-id', type=int, default=1, help='ID de la cámara para AR.')
+    args = parser.parse_args()
+
+    if args.width <= 100 or args.height <= 100:
+        raise ValueError('--width y --height deben ser mayores a 100')
+    if args.trail_length < 6:
+        raise ValueError('--trail-length debe ser al menos 6')
+    return args
+
+if __name__ == '__main__':
+    arguments = parse_args()
+
+    # Si se pide modo projection, forzamos fondo negro
+    game = Game(arguments.width, arguments.height, arguments.trail_length, use_udp_input=True)
+    
+    if arguments.projection:
+        game.background_color = (0, 0, 0)
+        # En modo proyección separado, necesitamos escuchar UDP siempre para recibir datos del tracker externo
+    
+    game.run()

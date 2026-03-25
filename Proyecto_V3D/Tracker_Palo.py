@@ -1,99 +1,105 @@
-import cv2
+﻿import cv2
 import numpy as np
 import socket
 import os
 
-# Configuración del Socket UDP
+# --- CONFIGURACIÓN DE RED ---
+# Creamos un socket UDP (SOCK_DGRAM) para comunicar las coordenadas al juego
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 udp_ip = "127.0.0.1"
 udp_port = 5005
 
-# -----------------------------------------------------------
-# CARGAR CALIBRACIÓN DE CÁMARA (Para Realidad Aumentada)
-# -----------------------------------------------------------
-# Busca el archivo 'camera_calibration.npz' generado por calibracion.py.
-# Si existe, se usará para corregir la distorsión de la lente ("undistort").
-calibration_file = "camera_calibration.npz"
-mtx, dist = None, None
-
-if os.path.exists(calibration_file):
-    try:
-        with np.load(calibration_file) as data:
-            mtx = data['mtx']
-            dist = data['dist']
-        print(f"Calibración cargada exitosamente desde: {calibration_file}")
-    except Exception as e:
-        print(f"Error al cargar la calibración: {e}")
-else:
-    print("AVISO: No se encontró 'camera_calibration.npz'. La imagen NO tendrá corrección de lente.")
-# -----------------------------------------------------------
-
-cap = cv2.VideoCapture(1)
-
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
-
-    # -----------------------------------------------------------
-    # APLICAR CORRECCIÓN DE LENTE (Undistort)
-    # -----------------------------------------------------------
-    if mtx is not None and dist is not None:
-        h, w = frame.shape[:2]
-        # Obtener nueva matriz óptima para evitar bordes negros indeseados
-        newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
-        # Corregir la imagen
-        frame = cv2.undistort(frame, mtx, dist, None, newcameramtx)
-        
-        # Opcional: Recortar la imagen a la región de interés válida
-        # x, y, w, h = roi
-        # frame = frame[y:y+h, x:x+w]
-    # -----------------------------------------------------------
-
-    # Voltear horizontalmente para que actúe como espejo
-    frame = cv2.flip(frame, 1)
+def run_tracker(camera_id=1):
+    # --- CARGA DE CALIBRACIÓN DE CÁMARA ---
+    # Intentamos cargar el archivo de calibración (.npz) generado previamente.
+    # Esto es necesario para corregir la distorsión de la lente (efecto ojo de pez).
+    #Elegir entre camera_calibration.npz o camera_charuco_calibration.npz dependiendo de cuál se haya generado.
+    calibration_file = "camera_calibration.npz"
+    mtx, dist = None, None
     
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
-    # Detectar color (ejemplo palo rojo)
-    # Ajusta estos valores según el color de tu palo
-    #lower_red = np.array([0, 120, 70])
-    #upper_red = np.array([10, 255, 255])
+    # Buscamos el archivo en varias rutas posibles
+    possible_paths = [calibration_file, os.path.join("..", calibration_file), os.path.join(os.path.dirname(__file__), calibration_file), os.path.join(os.path.dirname(__file__), "..", calibration_file)]
     
-    # Máscara para el color rojo (rango bajo)
-    #mask1 = cv2.inRange(hsv, lower_red, upper_red)
-    
-    # Máscara para el color rojo (rango alto, el rojo da la vuelta en HSV)
-    #lower_red2 = np.array([170, 120, 70])
-    #upper_red2 = np.array([180, 255, 255])
-    #mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+    found_file = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            found_file = path
+            break
 
-    # RANGO AZUL
-    # H: 90-130 | S: 100-255 | V: 100-255
-    lower_blue = np.array([90, 100, 100])
-    upper_blue = np.array([130, 255, 255])
-    mask = cv2.inRange(hsv, lower_blue, upper_blue)
+    if found_file:
+        try:
+            with np.load(found_file) as data:
+                mtx = data["mtx"]   # Matriz de la cámara
+                dist = data["dist"] # Coeficientes de distorsión
+            print(f"Calibración cargada exitosamente desde: {found_file}")
+        except Exception as e:
+            print(f"Error al cargar la calibración: {e}")
+    # --- INICIALIZACIÓN DE LA CÁMARA ---
+    else:
+        print(f"AVISO: No se encontró {calibration_file} - Se usará sin corrección.")
 
-    # Calcular momentos para encontrar el centro
-    moments = cv2.moments(mask)
-    if moments["m00"] != 0:
-        cx = int(moments["m10"] / moments["m00"])
-        cy = int(moments["m01"] / moments["m00"])
+    cap = cv2.VideoCapture(camera_id)
+    if not cap.isOpened():
+        print(f"Error: No se pudo abrir la cámara {camera_id}")
+        return
+
+    print("Iniciando Tracker Palo (Solo Tracking UDP + Calibración)...")
+    print(f"Envíando datos a {udp_ip}:{udp_port}")
+    print("Presiona q para salir.")
+
+    while True:
+        ret, frame_raw = cap.read()
+        if not ret:
+            break
+        frame = cv2.flip(frame_raw, 1)
+# --- CORRECCIÓN DE DISTORSIÓN ---
+        # Si se cargó la calibración, corregimos la imagen
+        if mtx is not None and dist is not None:
+            h_cam, w_cam = frame.shape[:2]
+            # Calculamos la nueva matriz óptima para la cámara
+            newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w_cam,h_cam), 0, (w_cam,h_cam))
+            # Aplicamos 'undistort' para aplanar la imagen
+            frame = cv2.undistort(frame, mtx, dist, None, newcameramtx)
+        # --- PROCESAMIENTO DE IMAGEN (TRACKING) ---
+        # Convertimos a HSV para facilitar la detección de color
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         
-        # Dibujar un círculo en el centro detectado
-        cv2.circle(frame, (cx, cy), 10, (0, 255, 0), -1)
+        # Definimos el rango de color a rastrear (ajustar si cambia la luz)
+        lower_color = np.array([90, 100, 100])
+        upper_color = np.array([130, 255, 255])
         
-        # Enviar coordenadas al entorno (formato "x,y,w,h")
-        frame_h, frame_w = frame.shape[:2]
-        data = f"{cx},{cy},{frame_w},{frame_h}"
-        sock.sendto(data.encode(), (udp_ip, udp_port))
-        print(f"Enviando: {data}")
+        # Creamos una máscara con los píxeles que están en ese rango
+        mask = cv2.inRange(hsv, lower_color, upper_color)
 
-    cv2.imshow("Tracker", frame)
-    cv2.imshow("Mask", mask)
+        # Calculamos los momentos de la imagen binaria para encontrar el centro
+        moments = cv2.moments(mask)
+        cx, cy = 0, 0
+        if moments["m00"] != 0: # Si hay área detectada
+            cx = int(moments["m10"] / moments["m00"])
+            cy = int(moments["m01"] / moments["m00"])
+            
+            # --- ENVÍO DE DATOS UDP ---
+            height, width = frame.shape[:2]
+            # Empaquetamos: posición X, posición Y, ancho y alto de referencia
+            data = f"{cx},{cy},{width},{height}"
+            try:
+                sock.sendto(data.encode(), (udp_ip, udp_port))
+            except:
+                pass # Ignoramos errores de red puntuales
+            
+            # Dibujamos un círculo y texto en la posición detectada"{cx},{cy},{width},{height}"
+            try:
+                sock.sendto(data.encode(), (udp_ip, udp_port))
+            except:
+                pass
+            cv2.circle(frame, (cx, cy), 10, (0, 255, 0), 2)
+            cv2.putText(frame, f"Pos: {cx},{cy}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-    if cv2.waitKey(1) == 27: # Presiona ESC para salir
-        break
+        cv2.imshow("Tracker Palo (Calibrado)", frame)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+    cap.release()
+    cv2.destroyAllWindows()
 
-cap.release()
-cv2.destroyAllWindows()
+if __name__ == "__main__":
+    run_tracker()

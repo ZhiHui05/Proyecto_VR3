@@ -1,98 +1,93 @@
-# Proyecto V3D - Fruit Ninja con Tracking de Objeto
+# Proyecto V3D - Fruit Ninja AR con Homografía y Tracking
 
-## Descripci贸n
-Este proyecto implementa un juego interactivo estilo "Fruit Ninja" controlado mediante la detecci贸n de movimiento de un objeto f铆sico (por defecto de color azul/cyan) a trav茅s de una webcam. 
+## Descripción
+Este proyecto implementa un sistema de Realidad Aumentada (AR) interactivo estilo "Fruit Ninja". El jugador controla el "sable" mediante un objeto físico (color azul/cyan) rastreado por una webcam. 
 
-La arquitectura divide el sistema en dos procesos independientes que se comunican mediante **UDP**:
-1.  **Visi贸n Artificial**: Procesa la imagen de la c谩mara, corrige la distorsi贸n de la lente y rastrea el objeto.
-2.  **Juego (PyGame)**: Renderiza los gr谩ficos y la l贸gica del juego, recibiendo las coordenadas del objeto como "cursor".
+El sistema destaca por utilizar **Homografía** para mapear la superficie de una mesa real a la pantalla del juego, permitiendo una interacción precisa incluso en las esquinas, y proyectando los elementos del juego virtual de vuelta sobre la imagen de la cámara.
 
-Esta separaci贸n permite ejecutar el juego en un proyector mientras se monitoriza la c谩mara en otra pantalla.
+## Arquitectura (Bidireccional)
+El sistema consta de dos procesos que se comunican por **UDP** en tiempo real:
 
----
+1.  **Tracker (`Tracker_Palo.py`) - Puerto 5005 -> Juego**:
+    *   Procesa la imagen de la cámara.
+    *   Aplica corrección de lente (calibración intrínseca).
+    *   Calcula la **Homografía** (calibración extrínseca) para transformar coordenadas de cámara a juego.
+    *   Envía la posición del cursor $(X, Y)$ al juego.
+    *   **Renderiza AR**: Recibe el estado del juego y dibuja frutas/bombas sobre la imagen de la video.
 
-## Requisitos
-Aseg煤rate de tener instalado Python 3.x y las siguientes librer铆as:
-
-```bash
-pip install opencv-python numpy pygame
-```
-
----
-
-## Estructura de Archivos
-
-###  Archivos Principales (Ejecutables)
-
-*   **`Tracker_Palo.py`**  
-    *   **Qu茅 hace:** Es el "driver" del sistema. Captura la imagen de la webcam, busca si existe un archivo de calibraci贸n (`camera_calibration.npz`) para corregir el efecto ojo de pez, detecta el color configurado (HSV) y env铆a la posici贸n (X, Y) al juego por el puerto 5005.
-    *   **Uso:** Debe ejecutarse siempre en paralelo al juego.
-
-*   **`game.py`**  
-    *   **Qu茅 hace:** El juego principal. Lanza la ventana gr谩fica, genera frutas y bombas, y escucha por UDP las coordenadas para simular el corte.
-    *   **Argumentos:**
-        *   `--projection`: Cambia el fondo a negro absoluto (ideal para proyectores).
-        *   `--fullscreen`: Inicia en pantalla completa.
-
-*   **`calibracion.py`**  
-    *   **Qu茅 hace:** Herramienta interactiva para calibrar tu c谩mara. Te pide que muestres un tablero de ajedrez en diferentes 谩ngulos para calcular la matriz de correcci贸n y eliminar la distorsi贸n de la lente.
-
-###  Archivos de Soporte (M贸dulos)
-
-*   **`input_handler.py`**:  
-    Clase que gestiona la recepci贸n de paquetes UDP en un hilo separado para no bloquear el juego.
-*   **`entities.py`**:  
-    Define las clases de los objetos: `FlyingShape` (frutas/bombas), `SplitHalf` (mitades cortadas) y `SlashParticle` (efectos visuales).
-*   **`utils.py`**:  
-    Funciones matem谩ticas utilitarias para detectar colisiones entre el segmento de corte y los c铆rculos (frutas).
-*   **`entorno.py`**:  
-    Script alternativo/legacy para lanzar el juego con argumentos b谩sicos.
-*   **`Tracker_Objeto.py`**:  
-    Versi贸n antigua del tracker. Sirve como referencia simple de detecci贸n de colores (rojo/amarillo) sin conexi贸n UDP ni calibraci贸n avanzada.
+2.  **Juego (`game.py`) - Puerto 5006 -> Tracker**:
+    *   Renderiza la lógica del juego (física, puntuación, vidas).
+    *   Envía el estado de todas las "Entidades" (tipo, posición, radio, color) al tracker para la visualización AR.
+    *   Muestra un cursor visual (anillo verde) que sigue al objeto rastreado.
 
 ---
 
-## Gu铆a de Ejecuci贸n
+## Novedades y Características Clave
 
-Para jugar, necesitas abrir **dos terminales** diferentes.
+### 1. Calibración de Superficie (Homografía)
+Para solucionar el problema de no alcanzar las esquinas o la distorsión de perspectiva al jugar sobre una mesa inclinada respecto a la cámara:
+*   El tracker permite definir manualmente las **4 esquinas de la zona de juego**.
+*   Esto crea una matriz de transformación que "endereza" la imagen y asigna exactamente el área física delimitada a la pantalla completa del juego.
 
-### Paso 1: Calibraci贸n (Opcional pero recomendado)
-Si tu c谩mara tiene efecto "ojo de pez" o deforma mucho la imagen:
-1.  Imprime un tablero de ajedrez (patr贸n 9x6 esquinas internas).
-2.  Ejecuta:
-    ```bash
-    python Proyecto_V3D/calibracion.py
-    ```
-3.  Sigue las instrucciones en pantalla (`s` para capturar, `c` para calibrar). Esto generar谩 el archivo `camera_calibration.npz`.
+### 2. Realidad Aumentada (AR) Sólida
+*   El tracker recibe la posición de las frutas y bombas del juego.
+*   Utiliza la **matriz inversa de la homografía** para proyectar esos objetos virtuales sobre el video de la cámara.
+*   **Mejora visual**: Los objetos se renderizan con colores sólidos (sin transparencia) para evitar que la imagen se vea oscura o lavada.
 
-### Paso 2: Ejecutar el Juego
-En la **Terminal 1**, inicia el juego a la espera de datos:
+### 3. Sincronización de Cortes
+*   Cuando cortas una fruta en el juego, las dos mitades resultantes también se envían al tracker y se visualizan cayendo en la pantalla de la cámara.
 
-**Modo Desarrollo (Ventana normal):**
+---
+
+## Guía de Uso
+
+### Paso 1: Iniciar el Juego
+Abre una terminal y ejecuta el juego. Este se quedará esperando datos del tracker.
+
+**Ventana normal (Recomendado para pruebas):**
 ```bash
 python Proyecto_V3D/game.py
 ```
 
-**Modo Proyecci贸n (Pantalla completa y fondo negro):**
+**Pantalla completa (Para jugar):**
 ```bash
-python Proyecto_V3D/game.py --projection --fullscreen
+python Proyecto_V3D/game.py --fullscreen
 ```
 
-### Paso 3: Ejecutar el Tracker
-En la **Terminal 2**, inicia la visi贸n artificial:
+### Paso 2: Iniciar el Tracker y Calibrar
+Abre una **segunda terminal** y ejecuta el tracker:
+
 ```bash
 python Proyecto_V3D/Tracker_Palo.py
 ```
-*Se abrir谩 una ventana mostrando lo que ve la c谩mara. Aseg煤rate de que tu objeto (palo azul) sea detectado y tenga un c铆rculo verde encima.*
+
+**Proceso de Calibración (IMPORTANTE):**
+1.  Se abrirá la ventana de la cámara.
+2.  Haz **CLICK IZQUIERDO** en las 4 esquinas de tu área de juego real (por ejemplo, las esquinas de tu mesa o alfombrilla) en este orden:
+    *   Superior Izquierda -> Superior Derecha -> Inferior Derecha -> Inferior Izquierda.
+3.  Al completar los 4 puntos, el sistema calculará la homografía.
+4.  ?Listo! Ahora el cursor del juego debería llegar perfectamente a todas las esquinas.
+
+*Nota: Presiona `R` para reiniciar los puntos de calibración o `Q` para salir.*
 
 ---
 
-## Configuraci贸n de Color
+## Solución de Problemas Comunes
 
-El tracker est谩 configurado por defecto para detectar tonos **azules/cyan**. Si usas otro objeto, edita `Tracker_Palo.py` y modifica los rangos HSV:
+*   **"El juego va con lag / retraso"**: 
+    *   El tracker incluye un sistema de "drenado de buffer" para procesar siempre el último paquete recibido y descartar los viejos. Asegúrate de que ambos scripts corren en la misma máquina (localhost).
+*   **"Error: UnboundLocalError: local_variable referenced before assignment"**:
+    *   Este error ocurría en versiones anteriores cuando el juego no enviaba datos al inicio. Ha sido corregido inicializando variables por defecto (`local_game_width`, `local_game_height`) en el tracker.
+*   **"La imagen de la cámara se ve muy oscura"**:
+    *   Se ha eliminado la transparencia (`cv2.addWeighted`) en la capa de AR. Ahora los objetos se dibujan directamente sobre el frame, manteniendo el brillo original de la cámara.
 
-```python
-# Ejemplo para color AZUL/CYAN
-lower_color = np.array([90, 100, 100])
-upper_color = np.array([130, 255, 255])
-```
+---
+
+## Estructura de Archivos Actualizada
+
+*   `Tracker_Palo.py`: Lógica principal de visión, homografía y AR.
+*   `game.py`: Motor del juego.
+*   `camera_calibration.npz`: Archivo con los datos intrínsecos de tu cámara (generado por `calibracion.py`).
+*   `utils.py`: Funciones auxiliares de geometría.
+*   `entities.py`: Clases del juego.
+

@@ -20,12 +20,40 @@ try:
 except OSError:
     print("Puerto 5006 ya en uso. Sincronización visual desactivada.")
 
+# --- VARIABLES GLOBALES PARA CALIBRACIÓN MANUAL (HOMOGRAFÍA) ---
+calibration_points = []
+homography_matrix = None
+game_width_ref = 1280
+game_height_ref = 720
+
+def mouse_callback(event, x, y, flags, param):
+    global calibration_points, homography_matrix
+    
+    if event == cv2.EVENT_LBUTTONDOWN:
+        if len(calibration_points) < 4:
+            calibration_points.append((x, y))
+            print(f"Punto {len(calibration_points)} registrado: {x},{y}")
+            
+            if len(calibration_points) == 4:
+                print("Calculando Homografía...")
+                # Puntos origen (Cámara)
+                src = np.float32(calibration_points)
+                # Puntos destino (Juego/Pantalla)
+                dst = np.float32([
+                    [0, 0],
+                    [game_width_ref, 0],
+                    [game_width_ref, game_height_ref],
+                    [0, game_height_ref]
+                ])
+                homography_matrix = cv2.getPerspectiveTransform(src, dst)
+                print("¡Homografía lista! Ahora el cursor sigue el plano definido.")
 
 def run_tracker(camera_id=1):
-    # --- CARGA DE CALIBRACIÓN DE CÁMARA ---
+    global calibration_points, homography_matrix
+    
+    # --- CARGA DE CALIBRACIÓN DE CÁMARA (Intrínseca) ---
     calibration_file = "camera_calibration.npz"
     mtx, dist = None, None
-    camera_matrix_init = False
     
     possible_paths = [calibration_file, os.path.join("..", calibration_file), os.path.join(os.path.dirname(__file__), calibration_file)]
     found_file = None
@@ -55,13 +83,23 @@ def run_tracker(camera_id=1):
     cap.set(cv2.CAP_PROP_FPS, 60)
 
     print("Iniciando Tracker Palo...")
-    print(f"Envíando datos a {udp_ip_send}:{udp_port_send}")
-    print(f"Escuchando estado del juego en puerto 5006")
-    print("Presiona q para salir.")
+    print("--- INSTRUCCIONES ---")
+    print("1. Haz CLICK en las 4 esquinas de tu área de juego (Mesa) en sentido horario:")
+    print("   Top-Left -> Top-Right -> Bottom-Right -> Bottom-Left")
+    print("2. Una vez definidos los 4 puntos, el cursor se mapeará correctamente.")
+    print("3. Presiona R para reiniciar la calibración.")
+    print("4. Presiona Q para salir.")
+
+    cv2.namedWindow("Tracker Palo (Activo)")
+    cv2.setMouseCallback("Tracker Palo (Activo)", mouse_callback)
 
     game_objects = []
     game_halves = []
     last_game_update = 0
+
+    # Inicializar referencias locales con valores por defecto
+    local_game_width = game_width_ref
+    local_game_height = game_height_ref
 
     while True:
         # --- 1. Sincronización con el Juego (Drenar buffer) ---
@@ -81,8 +119,9 @@ def run_tracker(camera_id=1):
                 state = json.loads(data_recv.decode())
                 game_objects = state.get("entities", [])
                 game_halves = state.get("halves", [])
-                game_width = state.get("width", 1280)
-                game_height = state.get("height", 720)
+                # Actualizar referencia local si el juego cambia de tamaño
+                local_game_width = state.get("width", 1280)
+                local_game_height = state.get("height", 720)
                 last_game_update = current_time
         except Exception:
             pass
@@ -99,21 +138,10 @@ def run_tracker(camera_id=1):
         frame = cv2.flip(frame_raw, 1)
         h_cam, w_cam = frame.shape[:2]
 
-        # --- Optimización: Mapa de distorsión (Versión Simple por petición del usuario) ---
+        # --- Optimización: Mapa de distorsión (Versión Simple) ---
         if mtx is not None and dist is not None:
-             h_cam, w_cam = frame.shape[:2]
              newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w_cam,h_cam), 0, (w_cam,h_cam))
              frame = cv2.undistort(frame, mtx, dist, None, newcameramtx)
-
-        # --- APLICAR ZOOM DIGITAL (10%) para evitar esquinas muertas ---
-        fh, fw = frame.shape[:2]
-        crop_ratio = 0.10
-        cy_start, cy_end = int(fh * crop_ratio), int(fh * (1 - crop_ratio))
-        cx_start, cx_end = int(fw * crop_ratio), int(fw * (1 - crop_ratio))
-        
-        frame = frame[cy_start:cy_end, cx_start:cx_end]
-        frame = cv2.resize(frame, (fw, fh))
-        h_cam, w_cam = frame.shape[:2] # Recalcular dimensiones tras resize
         
         # --- 3. Procesamiento (HSV) ---
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -124,69 +152,108 @@ def run_tracker(camera_id=1):
         
         mask = cv2.inRange(hsv, lower_color, upper_color)
 
-        # Momentos (Optimizado: solo buscar si hay píxeles)
+        # Momentos
         count = cv2.countNonZero(mask)
         cx, cy = 0, 0
         
         if count > 50: # Umbral de ruido
             moments = cv2.moments(mask)
             if moments["m00"] != 0:
-                # Usar coordenadas reales y enviarlas directamente (sin easing)
                 cx = int(moments["m10"] / moments["m00"])
                 cy = int(moments["m01"] / moments["m00"])
                 
-                # Visualización Cursor (ROJO y REAL, como solicitado)
-                cv2.circle(frame, (cx, cy), 15, (0, 0, 255), 3) 
-                cv2.circle(frame, (cx, cy), 3, (0, 0, 255), -1)
+                # --- APLICAR HOMOGRAFÍA SI ESTÁ LISTA ---
+                msg_x, msg_y = cx, cy
 
-                # Enviar UDP inmediatamente
-                data = f"{cx},{cy},{w_cam},{h_cam}"
+                if homography_matrix is not None:
+                    # Transformar punto usando la matriz
+                    pt_original = np.array([[[cx, cy]]], dtype=np.float32)
+                    pt_transformed = cv2.perspectiveTransform(pt_original, homography_matrix)
+                    tx = pt_transformed[0][0][0]
+                    ty = pt_transformed[0][0][1]
+                    
+                    msg_x, msg_y = int(tx), int(ty)
+                    
+                    # Visualizar punto re-proyectado (solo debug)
+                    # cv2.circle(frame, (cx, cy), 5, (0, 0, 255), -1) 
+                
+                # Visualización Cursor (Verde = Tracking Raw)
+                cv2.circle(frame, (cx, cy), 10, (0, 255, 0), 2)
+
+                # Enviar UDP (Usamos las coordenadas transformadas si existen, o las raw escaladas luego)
+                # NOTA: Si usamos homografía, enviamos coordenadas de JUEGO (0-1280), 
+                # por lo que "w_cam" en el mensaje debe ser el ancho del juego para que el input_handler no escale doble.
+                
+                if homography_matrix is not None:
+                     data = f"{msg_x},{msg_y},{local_game_width},{local_game_height}"
+                else:
+                     data = f"{cx},{cy},{w_cam},{h_cam}"
+
                 try:
                     sock_send.sendto(data.encode(), (udp_ip_send, udp_port_send))
                 except:
                     pass
 
-        # --- 4. Renderizado AR (Con blending para feedback visual) ---
-        if game_objects or game_halves:
-            # Factores de escala
-            scale_x = w_cam / game_width
-            scale_y = h_cam / game_height
-            
-            overlay = frame.copy()
-            
-            for obj in game_objects:
-                ox = int(obj["x"] * scale_x)
-                oy = int(obj["y"] * scale_y)
-                orad = int(obj["r"] * scale_x) 
-                ocolor = obj["c"] # RGB
-                
-                cv_color = (ocolor[2], ocolor[1], ocolor[0]) # BGR
-                
-                # Renderizar Fruta/Bomba
-                cv2.circle(overlay, (ox, oy), orad, cv_color, -1)
-                
-                if obj["type"] == "bomb":
-                    cv2.putText(overlay, "X", (ox-10, oy+10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2)
+        # --- DIBUJAR PUNTOS DE CALIBRACIÓN ---
+        for i, pt in enumerate(calibration_points):
+            cv2.circle(frame, pt, 5, (0, 0, 255), -1)
+            if i > 0:
+                cv2.line(frame, calibration_points[i-1], pt, (0, 0, 255), 2)
+        if len(calibration_points) == 4:
+            cv2.line(frame, calibration_points[3], calibration_points[0], (0, 0, 255), 2)
 
-            for half in game_halves:
-                hx = int(half["x"] * scale_x)
-                hy = int(half["y"] * scale_y)
-                hrad = int(half["r"] * scale_x)
-                hcolor = half["c"]
-                if hcolor and len(hcolor) >= 3:
-                     cv_color = (hcolor[2], hcolor[1], hcolor[0])
+
+        # --- 4. Renderizado AR (Proyectar el juego en la zona delimitada) ---
+        if (game_objects or game_halves):
+            
+            # Si hay homografía, necesitamos la matriz inversa para proyectar el juego (plano) -> cámara (distorsionada)
+            H_inv = None
+            if homography_matrix is not None:
+                H_inv = np.linalg.inv(homography_matrix)
+
+            # Función helper para proyectar puntos de juego -> cámara
+            def game_to_cam(gx, gy):
+                if H_inv is not None:
+                    pt_g = np.array([[[gx, gy]]], dtype=np.float32)
+                    pt_c = cv2.perspectiveTransform(pt_g, H_inv)
+                    return int(pt_c[0][0][0]), int(pt_c[0][0][1])
+                else:
+                    # Fallback escalar simple
+                    return int(gx * (w_cam/local_game_width)), int(gy * (h_cam/local_game_height))
+
+            # Dibujar Objetos
+            all_objs = game_objects + game_halves
+            for obj in all_objs:
+                # Coordenadas centro
+                ox, oy = game_to_cam(obj["x"], obj["y"])
+                
+                # Radio (aproximado, usando un punto en el borde)
+                rx, ry = game_to_cam(obj["x"] + obj["r"], obj["y"])
+                orad = int(np.hypot(rx - ox, ry - oy))
+                
+                # Color
+                c = obj["c"]
+                if len(c) >= 3:
+                     cv_color = (c[2], c[1], c[0])
                 else:
                      cv_color = (0,0,255)
-                
-                # Dibujar mitad como semicírculo (simple)
-                cv2.ellipse(overlay, (hx, hy), (hrad, hrad), 0, 0, 180, cv_color, -1)
-            
-            # Aplicar transparencia para que se vea la cámara detrás
-            cv2.addWeighted(overlay, 0.7, frame, 0.3, 0, frame)
+
+                # Render
+                if "type" in obj: # Es Fruta/Bomba
+                    cv2.circle(frame, (ox, oy), orad, cv_color, -1)
+                    if obj["type"] == "bomb":
+                        cv2.putText(frame, "X", (ox-10, oy+10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2)
+                else: # Es una mitad
+                    cv2.ellipse(frame, (ox, oy), (orad, orad), 0, 0, 180, cv_color, -1)
 
         cv2.imshow("Tracker Palo (Activo)", frame)
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
             break
+        elif key == ord("r"):
+            calibration_points = []
+            homography_matrix = None
+            print("Calibración reiniciada.")
 
     cap.release()
     cv2.destroyAllWindows()

@@ -1,93 +1,124 @@
-# Proyecto V3D - Fruit Ninja AR con Homograf赤a y Tracking
+# Proyecto V3D - Fruit Ninja AR con Homografia y Tracking
 
-## Descripci車n
-Este proyecto implementa un sistema de Realidad Aumentada (AR) interactivo estilo "Fruit Ninja". El jugador controla el "sable" mediante un objeto f赤sico (color azul/cyan) rastreado por una webcam. 
+## Descripcion
+Este proyecto implementa un sistema de Realidad Aumentada (AR) interactivo estilo Fruit Ninja.
+El jugador controla el sable mediante un objeto fisico de color azul/cyan rastreado por webcam.
 
-El sistema destaca por utilizar **Homograf赤a** para mapear la superficie de una mesa real a la pantalla del juego, permitiendo una interacci車n precisa incluso en las esquinas, y proyectando los elementos del juego virtual de vuelta sobre la imagen de la c芍mara.
+El sistema usa Homografia para mapear una superficie real (mesa) a la pantalla del juego,
+permitiendo una interaccion precisa en toda el area y proyectando los objetos virtuales
+sobre la imagen de la camara.
 
-## Arquitectura (Bidireccional)
-El sistema consta de dos procesos que se comunican por **UDP** en tiempo real:
+## Arquitectura (Bidireccional por UDP)
+El sistema tiene dos procesos en tiempo real:
 
-1.  **Tracker (`Tracker_Palo.py`) - Puerto 5005 -> Juego**:
-    *   Procesa la imagen de la c芍mara.
-    *   Aplica correcci車n de lente (calibraci車n intr赤nseca).
-    *   Calcula la **Homograf赤a** (calibraci車n extr赤nseca) para transformar coordenadas de c芍mara a juego.
-    *   Env赤a la posici車n del cursor $(X, Y)$ al juego.
-    *   **Renderiza AR**: Recibe el estado del juego y dibuja frutas/bombas sobre la imagen de la video.
+1. Tracker (Tracker_Palo.py) - envia al puerto 5005
+- Procesa la imagen de camara.
+- Aplica calibracion intrinseca (correccion de lente) si hay archivo .npz cargado.
+- Aplica homografia (calibracion extrinseca) para transformar coordenadas camara -> juego.
+- Envia la posicion del cursor (X, Y) al juego.
+- Recibe estado del juego y dibuja frutas/bombas sobre el video (AR).
 
-2.  **Juego (`game.py`) - Puerto 5006 -> Tracker**:
-    *   Renderiza la l車gica del juego (f赤sica, puntuaci車n, vidas).
-    *   Env赤a el estado de todas las "Entidades" (tipo, posici車n, radio, color) al tracker para la visualizaci車n AR.
-    *   Muestra un cursor visual (anillo verde) que sigue al objeto rastreado.
-
----
-
-## Novedades y Caracter赤sticas Clave
-
-### 1. Calibraci車n de Superficie (Homograf赤a)
-Para solucionar el problema de no alcanzar las esquinas o la distorsi車n de perspectiva al jugar sobre una mesa inclinada respecto a la c芍mara:
-*   El tracker permite definir manualmente las **4 esquinas de la zona de juego**.
-*   Esto crea una matriz de transformaci車n que "endereza" la imagen y asigna exactamente el 芍rea f赤sica delimitada a la pantalla completa del juego.
-
-### 2. Realidad Aumentada (AR) S車lida
-*   El tracker recibe la posici車n de las frutas y bombas del juego.
-*   Utiliza la **matriz inversa de la homograf赤a** para proyectar esos objetos virtuales sobre el video de la c芍mara.
-*   **Mejora visual**: Los objetos se renderizan con colores s車lidos (sin transparencia) para evitar que la imagen se vea oscura o lavada.
-
-### 3. Sincronizaci車n de Cortes
-*   Cuando cortas una fruta en el juego, las dos mitades resultantes tambi谷n se env赤an al tracker y se visualizan cayendo en la pantalla de la c芍mara.
+2. Juego (game.py) - envia al puerto 5006
+- Ejecuta logica de juego (fisica, puntuacion, vidas).
+- Envia estado de entidades al tracker para renderizado AR.
+- Muestra cursor visual sincronizado con el tracking.
 
 ---
 
-## Gu赤a de Uso
+## Calibracion de camara: 2 scripts, 2 archivos .npz
+Para calibracion intrinseca se han usado dos scripts distintos:
 
-### Paso 1: Iniciar el Juego
-Abre una terminal y ejecuta el juego. Este se quedar芍 esperando datos del tracker.
+1. calibracion.py
+- Metodo clasico con patron de tablero.
+- Genera: camera_calibration.npz
 
-**Ventana normal (Recomendado para pruebas):**
+2. calibracion_charuco.py
+- Metodo con tablero ChArUco (mas robusto en algunos escenarios).
+- Genera: camera_charuco_calibration.npz
+
+Importante:
+- No se usan los dos .npz a la vez.
+- En Tracker_Palo.py se carga solo uno, segun la opcion que quieras utilizar.
+
+### Como elegir la calibracion en Tracker_Palo.py
+En run_tracker(), cambia el valor de calibration_file:
+
+```python
+# Opcion 1 (calibracion clasica)
+calibration_file = "camera_calibration.npz"
+
+# Opcion 2 (calibracion Charuco)
+# calibration_file = "camera_charuco_calibration.npz"
+```
+
+Puedes dejar activa solo una de las dos opciones.
+
+---
+
+## Calibracion de superficie (Homografia)
+Para que el cursor llegue correctamente a toda la pantalla:
+- Define 4 puntos manualmente con click izquierdo en la ventana del tracker.
+- Orden: Top-Left -> Top-Right -> Bottom-Right -> Bottom-Left.
+- Con esos puntos se calcula la matriz de homografia.
+
+Controles:
+- R: reinicia la homografia (vuelve a pedir 4 puntos).
+- Q: salir.
+
+---
+
+## Guia rapida de uso
+1. Ejecutar juego:
+
 ```bash
 python Proyecto_V3D/game.py
 ```
 
-**Pantalla completa (Para jugar):**
+Opcional pantalla completa:
+
 ```bash
 python Proyecto_V3D/game.py --fullscreen
 ```
 
-### Paso 2: Iniciar el Tracker y Calibrar
-Abre una **segunda terminal** y ejecuta el tracker:
+2. Ejecutar tracker:
 
 ```bash
 python Proyecto_V3D/Tracker_Palo.py
 ```
 
-**Proceso de Calibraci車n (IMPORTANTE):**
-1.  Se abrir芍 la ventana de la c芍mara.
-2.  Haz **CLICK IZQUIERDO** en las 4 esquinas de tu 芍rea de juego real (por ejemplo, las esquinas de tu mesa o alfombrilla) en este orden:
-    *   Superior Izquierda -> Superior Derecha -> Inferior Derecha -> Inferior Izquierda.
-3.  Al completar los 4 puntos, el sistema calcular芍 la homograf赤a.
-4.  ?Listo! Ahora el cursor del juego deber赤a llegar perfectamente a todas las esquinas.
-
-*Nota: Presiona `R` para reiniciar los puntos de calibraci車n o `Q` para salir.*
+3. En la ventana del tracker:
+- Seleccionar 4 esquinas de la zona real de juego.
+- Verificar que el cursor responde en toda el area.
 
 ---
 
-## Soluci車n de Problemas Comunes
-
-*   **"El juego va con lag / retraso"**: 
-    *   El tracker incluye un sistema de "drenado de buffer" para procesar siempre el 迆ltimo paquete recibido y descartar los viejos. Aseg迆rate de que ambos scripts corren en la misma m芍quina (localhost).
-*   **"Error: UnboundLocalError: local_variable referenced before assignment"**:
-    *   Este error ocurr赤a en versiones anteriores cuando el juego no enviaba datos al inicio. Ha sido corregido inicializando variables por defecto (`local_game_width`, `local_game_height`) en el tracker.
-*   **"La imagen de la c芍mara se ve muy oscura"**:
-    *   Se ha eliminado la transparencia (`cv2.addWeighted`) en la capa de AR. Ahora los objetos se dibujan directamente sobre el frame, manteniendo el brillo original de la c芍mara.
+## Caracteristicas clave
+- Tracking por color HSV (azul/cyan).
+- Comunicacion UDP de baja latencia.
+- Homografia para corregir perspectiva en mesa inclinada.
+- Renderizado AR de frutas y bombas sobre imagen real.
+- Sincronizacion de mitades de fruta tras cortes.
 
 ---
 
-## Estructura de Archivos Actualizada
+## Solucion de problemas
+- Si no encuentra calibracion:
+    revisa que el .npz elegido exista en la ruta esperada.
 
-*   `Tracker_Palo.py`: L車gica principal de visi車n, homograf赤a y AR.
-*   `game.py`: Motor del juego.
-*   `camera_calibration.npz`: Archivo con los datos intr赤nsecos de tu c芍mara (generado por `calibracion.py`).
-*   `utils.py`: Funciones auxiliares de geometr赤a.
-*   `entities.py`: Clases del juego.
+- Si hay lag:
+    asegurate de ejecutar tracker y juego en la misma maquina (localhost).
+
+- Si el color no se detecta bien:
+    mejora iluminacion o ajusta el rango HSV en Tracker_Palo.py.
+
+---
+
+## Estructura principal
+- Tracker_Palo.py: tracking, homografia y render AR.
+- game.py: motor de juego.
+- calibracion.py: calibracion intrinseca clasica.
+- calibracion_charuco.py: calibracion intrinseca con ChArUco.
+- camera_calibration.npz: salida de calibracion.py.
+- camera_charuco_calibration.npz: salida de calibracion_charuco.py.
+- entities.py y utils.py: entidades y utilidades.
 

@@ -259,6 +259,11 @@ class Game3D:
         # UI
         self.score_text = Text(text=f'Score: {self.score}', position=(-0.8, 0.45), scale=2, color=color.white)
         
+        # Sistema de Combo
+        self.combo_count = 0
+        self.combo_timer = 0.0
+        self.combo_text = Text(text='', position=(0, 0.35), scale=3.5, color=color.yellow, origin=(0,0), enabled=False)
+        
         # Contadores de vidas (3 X vacías/grises que se pondrán rojas)
         self.crosses = []
         for i in range(3):
@@ -328,6 +333,9 @@ class Game3D:
     def reset_game(self):
         self.score = 0
         self.lives = 3
+        self.combo_count = 0
+        self.combo_timer = 0.0
+        self.combo_text.enabled = False
         self.update_ui()
         self.game_over = False
         self.game_over_text.enabled = False
@@ -478,11 +486,28 @@ class FloatingObject(Entity):
             # Efecto explosión
             game_instance.lives -= 1
             game_instance.update_ui()
+            
+            # Perder combo al golpear bomba
+            game_instance.combo_count = 0
+            game_instance.combo_text.enabled = False
+            
             self.create_particles(color.red, 15, speed=10)
             if game_instance.lives <= 0:
                 game_instance.handle_game_over()
         else:
             game_instance.score += 1
+            
+            # Registrar combo
+            game_instance.combo_count += 1
+            game_instance.combo_timer = 0.5 # medio segundo para enlazar el siguiente corte
+            
+            if game_instance.combo_count >= 2:
+                game_instance.combo_text.enabled = True
+                game_instance.combo_text.text = f'{game_instance.combo_count} COMBO!'
+                # Pequeño bonus de puntos por combo continuo
+                if game_instance.combo_count >= 3:
+                    game_instance.score += 1
+            
             game_instance.update_ui()
             # Crear las dos mitades
             self.create_halves(slice_dir)
@@ -532,6 +557,16 @@ def update_game_instance(self):
         if game.game_over_timer <= 0:
             game.reset_game()
         return
+        
+    # Decadencia del timer de combo
+    if game.combo_timer > 0:
+        game.combo_timer -= time.dt
+        if game.combo_timer <= 0:
+            if game.combo_count >= 3:
+                # Mostrar un extra por combo (opcional) o simplemente reset
+                pass
+            game.combo_count = 0
+            game.combo_text.enabled = False
 
     # 1. ACTUALIZAR CURSOR DESDE UDP (O RATON)
     # Por defecto ursina captura el ratón. Usamos input_handler para leer desde Tracker si manda UDP

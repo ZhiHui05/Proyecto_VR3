@@ -290,12 +290,13 @@ class Game3D:
         # Cursor / Espada y estela
         # Usamos un pequeño cubo como cursor en el espacio 3D
         self.cursor = Entity(model='sphere', color=color.rgba(100,255,100,200), scale=0.5, unlit=True)
-        # Lista para la estela (trail) del ratón
+        # Lista para la estela (trail) del ratón con interpolación para trazo continuo
         self.trail_entities = []
-        for _ in range(10):
-            self.trail_entities.append(Entity(model='quad', color=color.rgba(200, 200, 255, 150), scale=0.3, unlit=True))
+        for _ in range(60): # Más entidades para rellenar huecos
+            self.trail_entities.append(Entity(model='circle', color=color.rgba(200, 255, 255, 200), scale=0.4, unlit=True, enabled=False))
             
-        self.trail_positions = []
+        self.trail_data = [] # Lista de [pos, vida]
+        self.last_cursor_pos = None
         
         # Control de spawns por oleadas
         self.time_since_wave = 0.0
@@ -362,7 +363,7 @@ def update():
     game_instance.update()
 
 class FloatingObject(Entity):
-    def __init__(self, is_bomb=False, spawn_x=None, lateral_velocity=None):
+    def __init__(self, is_bomb=False, spawn_x=None, lateral_velocity=None, is_hard=False):
         
         # Definir frutas simulando formas 3D deformando esferas base
         # (Si añadieras un modelo, cambia 'model': 'sphere' por 'model': 'mi_fruta.obj')
@@ -371,32 +372,35 @@ class FloatingObject(Entity):
             obj_model = 'sphere'
             obj_scale = 1.3
             mass = 1.2
+            shape_sides = 0
         else:
             # Catalogo de formas geometricas variadas para estilo arcade 3D.
             frutas = [
-                {'name': 'Prisma triangular', 'color': color.azure, 'scale': Vec3(1.1, 1.6, 1.1), 'model': get_model('tri_prism'), 'mass': 0.85},
-                {'name': 'Prisma hexagonal', 'color': color.lime, 'scale': Vec3(1.1, 1.5, 1.1), 'model': get_model('hex_prism'), 'mass': 0.95},
-                {'name': 'Piramide', 'color': color.yellow, 'scale': Vec3(1.2, 1.8, 1.2), 'model': get_model('pyramid'), 'mass': 0.9},
-                {'name': 'Cilindro', 'color': color.orange, 'scale': Vec3(1.0, 1.8, 1.0), 'model': get_model('cylinder'), 'mass': 1.0},
-                {'name': 'Octaedro', 'color': color.red, 'scale': Vec3(1.4, 1.4, 1.4), 'model': get_model('octahedron'), 'mass': 0.8},
-                {'name': 'Dodecaedro', 'color': color.green, 'scale': Vec3(1.55, 1.55, 1.55), 'model': get_model('dodecahedron'), 'mass': 1.25},
-                {'name': 'Poliedro cubico', 'color': color.violet, 'scale': Vec3(1.4, 1.4, 1.4), 'model': 'cube', 'mass': 1.1},
+                {'name': 'Prisma triangular', 'sides': 3, 'color': color.azure, 'scale': Vec3(1.1, 1.6, 1.1), 'model': get_model('tri_prism'), 'mass': 0.85},
+                {'name': 'Prisma hexagonal', 'sides': 6, 'color': color.lime, 'scale': Vec3(1.1, 1.5, 1.1), 'model': get_model('hex_prism'), 'mass': 0.95},
+                {'name': 'Piramide', 'sides': 3, 'color': color.yellow, 'scale': Vec3(1.2, 1.8, 1.2), 'model': get_model('pyramid'), 'mass': 0.9},
+                {'name': 'Cilindro', 'sides': 0, 'color': color.orange, 'scale': Vec3(1.0, 1.8, 1.0), 'model': get_model('cylinder'), 'mass': 1.0},
+                {'name': 'Octaedro', 'sides': 4, 'color': color.red, 'scale': Vec3(1.4, 1.4, 1.4), 'model': get_model('octahedron'), 'mass': 0.8},
+                {'name': 'Dodecaedro', 'sides': 5, 'color': color.green, 'scale': Vec3(1.55, 1.55, 1.55), 'model': get_model('dodecahedron'), 'mass': 1.25},
+                {'name': 'Poliedro cubico', 'sides': 4, 'color': color.violet, 'scale': Vec3(1.4, 1.4, 1.4), 'model': 'cube', 'mass': 1.1},
             ]
             f = random.choice(frutas)
             obj_color = f['color']
             obj_model = f['model']
             obj_scale = f['scale']
             mass = f['mass']
+            shape_sides = f['sides']
 
         super().__init__(
             model=obj_model,
             color=obj_color,
             texture=None,
             scale=obj_scale,
-            position=(spawn_x if spawn_x is not None else uniform(-7.5, 7.5), game_instance.launch_y, 0),
+            position=(spawn_x if spawn_x is not None else uniform(-12.5, 12.5), game_instance.launch_y, 0),
             collider='sphere' if is_bomb else 'box'
         )
         self.is_bomb = is_bomb
+        self.shape_sides = shape_sides
         self.uses_custom_mesh = isinstance(self.model, Mesh)
         self.wireframe = False
         self.unlit = False
@@ -451,14 +455,34 @@ class FloatingObject(Entity):
                 collider=None,
             )
         
+        self.base_color = obj_color
+        self.freeze_timer = 0.0
+        self.invuln_timer = 0.0
+        self.hits_required = 1
+        
+        # Fruta dura/especial (determinada ahora en schedule_wave)
+        if is_hard:
+            self.hits_required = random.randint(5, 9) # Más cortes requeridos (5 a 9)
+            self.scale = self.scale * 1.5 # Hacerla un poco más grande
+            
         # Guardamos referencia para el manager
         game_instance.active_fruits.append(self)
 
     def update(self):
+        if hasattr(self, 'invuln_timer') and self.invuln_timer > 0:
+            self.invuln_timer -= time.dt
+            
+        freeze_factor = 1.0
+        if hasattr(self, 'freeze_timer') and self.freeze_timer > 0:
+            self.freeze_timer -= time.dt
+            freeze_factor = 0.02  # Detiene casi por completo el tiempo
+            # Efecto temblor por estar absorbiendo los cortes
+            self.position += Vec3(uniform(-0.1, 0.1), uniform(-0.1, 0.1), uniform(-0.1, 0.1))
+
         # Aplicar gravedad y mover
-        self.velocity.y += self.gravity * time.dt
-        self.position += self.velocity * time.dt
-        self.rotation += self.rotation_speed * time.dt
+        self.velocity.y += self.gravity * time.dt * freeze_factor
+        self.position += self.velocity * time.dt * freeze_factor
+        self.rotation += self.rotation_speed * time.dt * freeze_factor
 
         # Tope superior sin rebote: si llega al limite, corta la subida y cae.
         top_cap = game_instance.top_limit_y - max(0.2, self.scale.y * 0.5)
@@ -479,22 +503,50 @@ class FloatingObject(Entity):
             destroy(self)
 
     def slice(self, slice_dir):
-        if self in game_instance.active_fruits:
-            game_instance.active_fruits.remove(self)
+        if getattr(self, 'invuln_timer', 0) > 0:
+            return  # Todavía invulnerable por el corte anterior
 
         if self.is_bomb:
-            # Efecto explosión
+            if self in game_instance.active_fruits:
+                game_instance.active_fruits.remove(self)
+            # Efecto gran explosión
             game_instance.lives -= 1
             game_instance.update_ui()
+            
+            # Efecto de onda expansiva
+            wave = Entity(model='sphere', color=color.rgba(255, 50, 50, 200), scale=0.5, position=self.position, unlit=True)
+            wave.animate_scale(15, duration=0.4, curve=curve.out_circ)
+            wave.animate_color(color.rgba(255, 50, 50, 0), duration=0.4)
+            destroy(wave, delay=0.4)
+            
+            # Agitar cámara
+            camera.shake(duration=0.5, magnitude=0.4)
             
             # Perder combo al golpear bomba
             game_instance.combo_count = 0
             game_instance.combo_text.enabled = False
             
-            self.create_particles(color.red, 15, speed=10)
+            self.create_particles(color.red, 30, speed=15)
             if game_instance.lives <= 0:
                 game_instance.handle_game_over()
+            destroy(self)
         else:
+            self.hits_required -= 1
+            
+            if self.hits_required > 0:
+                # La fruta es dura, requiere más cortes. Se congela visualmente
+                self.freeze_timer = 0.5
+                self.invuln_timer = 0.15 # 150ms para que tengas que repasar sobre ella
+                
+                # Efecto visual: flash y chispas
+                self.color = color.white
+                invoke(setattr, self, 'color', self.base_color, delay=0.08)
+                self.create_particles(self.base_color, 4, speed=8)
+                return
+
+            if self in game_instance.active_fruits:
+                game_instance.active_fruits.remove(self)
+
             game_instance.score += 1
             
             # Registrar combo
@@ -511,38 +563,62 @@ class FloatingObject(Entity):
             game_instance.update_ui()
             # Crear las dos mitades
             self.create_halves(slice_dir)
-            self.create_particles(self.color, 5, speed=5)
-            
-        destroy(self)
+            self.create_particles(self.base_color, 5, speed=5)
+            destroy(self)
 
     def create_halves(self, slice_dir):
-        # Escalar las mitades para que visualmente parezca que se metió un tajo por en medio (más finas)
-        half_scale = Vec3(self.scale.x * 0.5, self.scale.y * 0.9, self.scale.z * 0.9)
+        # El vector de dirección del corte en 2D
+        dir_vector = Vec3(slice_dir.y, -slice_dir.x, 0).normalized() 
+        
+        # Ángulo del corte en grados
+        angle = math.degrees(math.atan2(slice_dir.y, slice_dir.x))
+        
         half_shader = DEFAULT_LIT_SHADER
 
-        half1 = Entity(model=self.model, color=self.color, texture=None, scale=half_scale, position=self.position, shader=half_shader, unlit=False, double_sided=True)
-        half2 = Entity(model=self.model, color=self.color, texture=None, scale=half_scale, position=self.position, shader=half_shader, unlit=False, double_sided=True)
+        # Creamos dos entidades "padre" que manejarán la orientación del corte
+        parent1 = Entity(position=self.position, rotation_z=angle)
+        parent2 = Entity(position=self.position, rotation_z=angle)
         
-        # Las desplazamos un pelín antes de enviarlas a volar para que no se solapen
-        dir_vector = Vec3(slice_dir.y, -slice_dir.x, 0).normalized() 
-        half1.position += dir_vector * 0.3
-        half2.position -= dir_vector * 0.3
+        # Escalar en el eje Y (perpendicular al corte en este rotación) para generar la mitad plana
+        parent1.scale_y = 0.5
+        parent2.scale_y = 0.5
+
+        # Las entidades hijas tienen el modelo original, color y rotación actual en el aire,
+        # pero son deformadas por el padre para parecer partídas
+        child1 = Entity(parent=parent1, model=self.model, color=self.color, scale=self.scale, rotation=self.rotation, shader=half_shader, unlit=self.unlit, double_sided=True)
+        child2 = Entity(parent=parent2, model=self.model, color=self.color, scale=self.scale, rotation=self.rotation, shader=half_shader, unlit=self.unlit, double_sided=True)
+        child1.shape_sides = getattr(self, "shape_sides", 0)
+        child2.shape_sides = getattr(self, "shape_sides", 0)
+
+        # Separar las mitades físicamente desde el centro en la dirección normal al corte
+        parent1.position += dir_vector * 0.4
+        parent2.position -= dir_vector * 0.4
         
-        # Efecto de explosión violenta hacia los lados al cortarse (como en Fruit Ninja)
-        throw_force = 12
-        half1.animate_position(half1.position + dir_vector * throw_force + Vec3(0, -15, 0), duration=1.5, curve=curve.linear)
-        half2.animate_position(half2.position - dir_vector * throw_force + Vec3(0, -15, 0), duration=1.5, curve=curve.linear)
+        # Efecto de propulsión física hacia los lados
+        throw_force = 8
+        parent1.animate_position(parent1.position + dir_vector * throw_force + Vec3(0, 4, 0), duration=0.6, curve=curve.out_expo)
+        parent2.animate_position(parent2.position - dir_vector * throw_force + Vec3(0, 4, 0), duration=0.6, curve=curve.out_expo)
+        
+        # Caída fuerte después del empuje inicial
+        invoke(lambda: parent1.animate_position(parent1.position + Vec3(0, -20, 0), duration=1.0, curve=curve.in_circ), delay=0.5)
+        invoke(lambda: parent2.animate_position(parent2.position + Vec3(0, -20, 0), duration=1.0, curve=curve.in_circ), delay=0.5)
         
         # Rotación súper loca al cortarse para vender el efecto
-        half1.animate_rotation(Vec3(uniform(300, 600), uniform(300, 600), uniform(300, 600)), duration=1.1)
-        half2.animate_rotation(Vec3(uniform(-600, -300), uniform(-300, -600), uniform(-600, -300)), duration=1.1)
+        child1.animate_rotation(child1.rotation + Vec3(uniform(300, 600), uniform(300, 600), uniform(300, 600)), duration=1.5)
+        child2.animate_rotation(child2.rotation + Vec3(uniform(-600, -300), uniform(-300, -600), uniform(-600, -300)), duration=1.5)
         
-        destroy(half1, delay=1.5)
-        destroy(half2, delay=1.5)
+        # Hacer que desaparezcan reduciendo su escala (desintegración suave)
+        # Animando los hijos para que disminuya solo la geometría sin arruinar el offset del padre
+        child1.animate_scale(0, duration=1.4, curve=curve.in_expo)
+        child2.animate_scale(0, duration=1.4, curve=curve.in_expo)
+        
+        destroy(parent1, delay=1.5)
+        destroy(parent2, delay=1.5)
 
     def create_particles(self, p_color, count, speed):
         for _ in range(count):
             p = Entity(model='cube', color=p_color, texture=None, scale=0.3, position=self.position, unlit=True, double_sided=True)
+            p.is_particle = True
             direction = Vec3(uniform(-1,1), uniform(-1,1), uniform(-1,1)).normalized()
             p.animate_position(p.position + direction * speed, duration=0.8, curve=curve.out_expo)
             p.animate_scale(0, duration=0.8)
@@ -552,12 +628,6 @@ class FloatingObject(Entity):
 def update_game_instance(self):
     game = self
     
-    if game.game_over:
-        game.game_over_timer -= time.dt
-        if game.game_over_timer <= 0:
-            game.reset_game()
-        return
-        
     # Decadencia del timer de combo
     if game.combo_timer > 0:
         game.combo_timer -= time.dt
@@ -576,51 +646,89 @@ def update_game_instance(self):
     
     # 2. MAPEAR A COORDENADAS 3D
     # Ursina tiene un sistema de pantalla que va de -0.5 a 0.5 en UI, pero el mundo real depende de fov de camara.
-    # Convertimos coordenadas de píxeles (0-Width, 0-Height) a unidades de mundo (plano z=0).
-    # La coordenada 'pointer_x' va de 0 a WindowWidth.
-    aspect_ratio = window.aspect_ratio
-    # Calculamos pos en plano
-    world_width = 20 * aspect_ratio 
-    world_height = 20 
+    # Distancia de la camara al origen (z=0) es 20 y fov es 60.
+    camera_z_dist = abs(camera.z)
+    fov_rad = math.radians(camera.fov / 2.0)
+    world_height = camera_z_dist * math.tan(fov_rad) * 2.0
+    world_width = world_height * window.aspect_ratio
     
-    # Si tenemos mouse de ursina y no viene por UDP, podemos usar mouse.x / mouse.y
-    # Si viene por UDP (pointer_x, pointer_y en pixeles):
-    cursor_world_x = (game.pointer_x / max(1, int(window.size[0])) - 0.5) * world_width * 1.5
-    cursor_world_y = -(game.pointer_y / max(1, int(window.size[1])) - 0.5) * world_height * 1.5
+    # Convertimos coordenadas de píxeles (0-Width, 0-Height) a unidades de mundo (plano z=0).
+    cursor_world_x = (game.pointer_x / max(1, int(window.size[0])) - 0.5) * world_width
+    cursor_world_y = -(game.pointer_y / max(1, int(window.size[1])) - 0.5) * world_height
     
     # Cursor position smoothing
     target_pos = Vec3(cursor_world_x, cursor_world_y, 0)
-    game.cursor.position = lerp(game.cursor.position, target_pos, min(1.0, time.dt * 30))
+    # Si movemos muy rápido, lerp puede dejar huecos o retrasar mucho. Aumentamos la velocidad de seguimiento.
+    game.cursor.position = lerp(game.cursor.position, target_pos, min(1.0, time.dt * 45))
     game.cursor.rotation_z += 200 * time.dt
     
-    # 3. ACTUALIZAR ESTELA (TRAIL)
-    game.trail_positions.append(game.cursor.position)
-    if len(game.trail_positions) > len(game.trail_entities):
-        game.trail_positions.pop(0)
+    current_pos = game.cursor.position
+    
+    # 3. ACTUALIZAR ESTELA (TRAIL) CON INTERPOLACIÓN CONTINUA
+    if game.last_cursor_pos is not None:
+        dist = distance(game.last_cursor_pos, current_pos)
+        if dist > 0.05:
+            steps = int(max(1, dist / 0.15)) # Crear puntos cada 0.15 unidades
+            for i in range(1, steps + 1):
+                t = i / steps
+                interp_pos = lerp(game.last_cursor_pos, current_pos, t)
+                game.trail_data.append([Vec3(interp_pos), 1.0])
+    else:
+        game.trail_data.append([Vec3(current_pos), 1.0])
         
-    for i, pos in enumerate(game.trail_positions):
-        game.trail_entities[i].position = pos
-        # Hacer que se encojan hacia el final de la estela
-        scale_fac = (i / len(game.trail_entities)) * 0.4
-        game.trail_entities[i].scale = scale_fac
+    game.last_cursor_pos = Vec3(current_pos)
+    
+    # Decaimiento del trail
+    new_trail = []
+    for data in game.trail_data:
+        data[1] -= time.dt * 3.5 # La vida baja de 1 a 0
+        if data[1] > 0:
+            new_trail.append(data)
+    game.trail_data = new_trail
+    
+    # Renderizar entidades del trail
+    # Renderizamos de atrás hacia adelante en los datos activos
+    idx = 0
+    for i in range(len(game.trail_data) - 1, -1, -1):
+        if idx >= len(game.trail_entities):
+            break
+        pos, life = game.trail_data[i]
+        ent = game.trail_entities[idx]
+        ent.position = pos
+        ent.scale = 0.5 * life # Se hace más fino al desaparecer
+        ent.enabled = True
+        idx += 1
+        
+    # Ocultar el resto
+    for i in range(idx, len(game.trail_entities)):
+        game.trail_entities[i].enabled = False
+
+    if game.game_over:
+        game.game_over_timer -= time.dt
+        if game.game_over_timer <= 0:
+            game.reset_game()
+        # Enviar estado incluso en game over para que no se congele el AR
+        game.send_state()
+        return
 
     # 4. COMPROBAR COLISIONES CON CORTE
-    if len(game.trail_positions) >= 2:
-        p1 = game.trail_positions[-1]
-        p2 = game.trail_positions[-2]
+    if len(game.trail_data) >= 5:
+        # Tomamos el punto actual y uno anterior en el tiempo para tener un vector de corte estable
+        p1 = game.trail_data[-1][0]
+        p2 = game.trail_data[-5][0] 
         
-        # Solo cortamos si el cursor se movió lo suficiente (evitar cortar dejando el cursor quieto)
+        # Solo cortamos si el cursor se movió lo suficiente
         slice_dist = distance(p1, p2)
-        if slice_dist > 0.1:
+        if slice_dist > 0.2:
             slice_dir = (p1 - p2).normalized()
             
             # Revisar todas las frutas y ver si chocan con la espada/cursor
             # Una forma sencilla es distancia del cursor a la fruta
             for f in list(game.active_fruits):
-                dist_to_fruit = distance(game.cursor.position, f.position)
-                # Usar la escala más alta de la fruta al colisionar por si está deformada (e.g. un plátano largo)
-                col_radius = max(f.scale_x, f.scale_y)
-                if dist_to_fruit < col_radius: # Radio de colisión
+                dist_to_fruit = distance(current_pos, f.position)
+                # Usar la escala más alta de la fruta al colisionar
+                col_radius = max(f.scale_x, f.scale_y) * 1.2
+                if dist_to_fruit < col_radius:
                     f.slice(slice_dir)
 
     # 5. SPAWN DE OBJETOS POR OLEADAS
@@ -632,12 +740,18 @@ def update_game_instance(self):
 
     if game.pending_spawns:
         next_pending = []
-        for delay, is_bomb, spawn_x, lateral_velocity in game.pending_spawns:
+        for spawn_data in game.pending_spawns:
+            if len(spawn_data) == 5:
+                delay, is_bomb, spawn_x, lateral_velocity, is_hard = spawn_data
+            else:
+                delay, is_bomb, spawn_x, lateral_velocity = spawn_data
+                is_hard = False
+                
             delay -= time.dt
             if delay <= 0:
-                FloatingObject(is_bomb=is_bomb, spawn_x=spawn_x, lateral_velocity=lateral_velocity)
+                FloatingObject(is_bomb=is_bomb, spawn_x=spawn_x, lateral_velocity=lateral_velocity, is_hard=is_hard)
             else:
-                next_pending.append((delay, is_bomb, spawn_x, lateral_velocity))
+                next_pending.append((delay, is_bomb, spawn_x, lateral_velocity, is_hard))
         game.pending_spawns = next_pending
 
     # 6. ENVIAR ESTADO AL TRACKER (Opcional)
@@ -651,49 +765,142 @@ def handle_game_over(game):
 
 def schedule_wave(game):
     # Oleadas estilo Fruit Ninja: grupos compactos con un ligero desfase temporal.
-    count = random.randint(2, 5)
-    center_x = uniform(-4.5, 4.5)
-    spacing = uniform(1.2, 1.9)
+    is_hard_wave = uniform(0, 1) < 0.12 # 12% de probabilidad de ser oleada de fruta especial/dura
+    
+    if is_hard_wave:
+        # Si es fruta especial, aparece sola o como mucho acompañada de una pequeña normal
+        count = random.randint(1, 2)
+    else:
+        count = random.randint(2, 5)
+
+    center_x = uniform(-9.0, 9.0)
+    spacing = uniform(2.5, 4.0)
     spawn_step = uniform(0.07, 0.13)
 
-    # Reducimos la probabilidad de que la oleada incluya una bomba 
-    include_bomb = uniform(0, 1) < 0.15 # Alrededor de un 15% de probabilidad por oleada
+    # Aumentamos la probabilidad de que la oleada incluya una bomba
+    # Las bombas no se mezclarán con las frutas especiales para no ser caótico
+    include_bomb = (not is_hard_wave) and (uniform(0, 1) < 0.35) 
     bomb_index = random.randint(0, count - 1) if include_bomb else -1
 
     for i in range(count):
         slot = i - (count - 1) / 2.0
         spawn_x = center_x + slot * spacing
-        spawn_x = max(-7.4, min(7.4, spawn_x))
+        spawn_x = max(-14.0, min(14.0, spawn_x))
 
-        lateral_velocity = slot * 0.35 + uniform(-0.15, 0.15)
+        lateral_velocity = slot * 1.0 + uniform(-1.0, 1.0)
         is_bomb = i == bomb_index
+        is_hard = (is_hard_wave and i == 0) # Solo la primera que spawnea será especial
+        
         delay = i * spawn_step
-        game.pending_spawns.append((delay, is_bomb, spawn_x, lateral_velocity))
+        game.pending_spawns.append((delay, is_bomb, spawn_x, lateral_velocity, is_hard))
 
 Game3D.update = update_game_instance
 Game3D.handle_game_over = handle_game_over
 Game3D.schedule_wave = schedule_wave
 
 def send_state(game):
+    import json
     entities = []
+    import math
+    camera_z_dist = abs(camera.z)
+    fov_rad = math.radians(camera.fov / 2.0)
+    world_height = camera_z_dist * math.tan(fov_rad) * 2.0
+    world_width = world_height * (window.aspect_ratio if window.aspect_ratio > 0 else 1.0)
+
     for f in game.active_fruits:
+        c_r, c_g, c_b = 255, 255, 255
+        if hasattr(f, 'color'):
+            c_r = int(f.color.r * 255)
+            c_g = int(f.color.g * 255)
+            c_b = int(f.color.b * 255)
+            
+        rad_world = max(f.scale.x, f.scale.y) * 1.5
+        rad_pixels = int((rad_world / world_height) * int(window.size[1]))      
+
         entities.append({
-            "x": int((f.x / 30 + 0.5) * int(window.size[0])), 
-            "y": int((-f.y / 30 + 0.5) * int(window.size[1])),
-            "type": "bomb" if f.is_bomb else "fruit"
+            "x": int((f.x / world_width + 0.5) * int(window.size[0])),
+            "y": int((-f.y / world_height + 0.5) * int(window.size[1])),        
+            "nx": f.x / world_width + 0.5,
+            "ny": -f.y / world_height + 0.5,
+            "nz": f.z / world_height,
+            "nr": rad_world / world_height,
+            "r": rad_pixels,
+            "c": [c_r, c_g, c_b],
+            "type": "bomb" if getattr(f, "is_bomb", False) else "fruit",
+            "sides": getattr(f, "shape_sides", 0),
+            "rot": float(f.rotation_z),
+            "rot_x": float(f.rotation_x),
+            "rot_y": float(f.rotation_y),
+            "rot_z": float(f.rotation_z)
         })
+        
+    halves = []
+    particles = []
+    for p in scene.entities:
+        try:
+            if getattr(p, 'is_particle', False):
+                rad_world = p.scale_x
+                c_r, c_g, c_b = int(p.color.r * 255), int(p.color.g * 255), int(p.color.b * 255)
+                particles.append({
+                    "nx": p.x / world_width + 0.5,
+                    "ny": -p.y / world_height + 0.5,
+                    "nz": p.z / world_height,
+                    "nr": rad_world / world_height,
+                    "c": [c_r, c_g, c_b],
+                    "type": "particle",
+                    "sides": 4,
+                    "rot_x": float(p.rotation_x),
+                    "rot_y": float(p.rotation_y),
+                    "rot_z": float(p.rotation_z)
+                })
+            elif p.name == 'entity' and hasattr(p, 'children') and len(p.children) == 1:
+                child = p.children[0]
+                if isinstance(child.model, Mesh) or child.model in CUSTOM_MODELS.values():
+                    if p not in game.active_fruits and not hasattr(p, 'is_bomb'):
+                        rad_world = max(child.scale.x, child.scale.y) * 0.8     
+                        rad_pixels = int((rad_world / world_height) * int(window.size[1]))
+                        c_r, c_g, c_b = 255, 255, 255
+                        if hasattr(child, 'color'):
+                            c_r = int(child.color.r * 255)
+                            c_g = int(child.color.g * 255)
+                            c_b = int(child.color.b * 255)
+                        halves.append({
+                            "x": int((p.x / world_width + 0.5) * int(window.size[0])),
+                            "y": int((-p.y / world_height + 0.5) * int(window.size[1])),
+                            "nx": p.x / world_width + 0.5,
+                            "ny": -p.y / world_height + 0.5,
+                            "nz": p.z / world_height,
+                            "nr": rad_world / world_height,
+                            "r": rad_pixels,
+                            "c": [c_r, c_g, c_b],
+                            "sides": getattr(child, "shape_sides", 0) if getattr(child, "shape_sides", 0) else 4,
+                            "rot": float(child.world_rotation_z),
+                            "rot_x": float(child.world_rotation_x),
+                            "rot_y": float(child.world_rotation_y),
+                            "rot_z": float(child.world_rotation_z)
+                        })
+        except AssertionError:
+            pass
+        except Exception:
+            pass
+
     state = {
         "width": int(window.size[0]),
         "height": int(window.size[1]),
         "entities": entities,
-        "halves": []
+        "halves": halves,
+        "particles": particles,
+        "score": getattr(game, 'score', 0),
+        "lives": getattr(game, 'lives', 3),
+        "combo_count": getattr(game, 'combo_count', 0),
+        "game_over": getattr(game, 'game_over', False)
     }
     try:
         msg = json.dumps(state)
         game.sender_sock.sendto(msg.encode(), game.tracker_address)
     except:
         pass
-        
+
 Game3D.send_state = send_state
 
 

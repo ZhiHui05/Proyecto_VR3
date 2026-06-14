@@ -1,0 +1,174 @@
+2026-06-14 22:59:34,356 - V3DDroneControl - INFO - Gesture changed: EMERGENCY_STOP (confidence=5/8)
+2026-06-14 22:59:34,406 - V3DDroneControl - INFO - Gesture changed: MOVE_RIGHT (confidence=5/8)
+2026-06-14 23:00:13,159 - V3DDroneControl - INFO - Gesture changed: EMERGENCY_STOP (confidence=5/8)
+2026-06-14 23:00:13,186 - V3DDroneControl - INFO - Gesture changed: MOVE_RIGHT (confidence=5/8)
+2026-06-14 23:00:27,141 - V3DDroneControl - INFO - Gesture changed: EMERGENCY_STOP (confidence=5/8)
+2026-06-14 23:00:27,164 - V3DDroneControl - INFO - Gesture changed: MOVE_RIGHT (confidence=5/8)
+2026-06-14 23:00:43,689 - V3DDroneControl - INFO - Gesture changed: EMERGENCY_STOP (confidence=5/8)
+2026-06-14 23:00:43,692 - V3DDroneControl - INFO - Gesture changed: MOVE_RIGHT (confidence=5/8)
+2026-06-14 23:00:48,012 - V3DDroneControl - INFO - Logger test OK
+2026-06-14 23:00:52,981 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:01:40,883 - V3DDroneControl - INFO - Gesture changed: EMERGENCY_STOP (confidence=5/8)
+2026-06-14 23:01:40,887 - V3DDroneControl - INFO - Gesture changed: MOVE_RIGHT (confidence=5/8)
+2026-06-14 23:10:49,359 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:10:49,360 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:10:49,361 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:10:49,361 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:10:49,731 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:10:49,731 - V3DDroneControl - INFO - TAKEOFF complete - now FLYING
+2026-06-14 23:10:49,732 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:10:49,732 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:10:49,732 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:10:50,101 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:10:50,101 - V3DDroneControl - INFO - TAKEOFF complete - now FLYING
+2026-06-14 23:10:50,161 - V3DDroneControl - INFO - Drone received gesture: LAND (confidence=0.90)
+2026-06-14 23:10:50,161 - V3DDroneControl - INFO - LANDING initiated
+2026-06-14 23:10:50,650 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:10:50,677 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:10:50,677 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:10:50,678 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:10:51,046 - V3DDroneControl - INFO - Drone received gesture: MOVE_FORWARD (confidence=0.90)
+2026-06-14 23:10:51,172 - V3DDroneControl - INFO - Drone received gesture: EMERGENCY_STOP (confidence=0.90)
+2026-06-14 23:10:51,172 - V3DDroneControl - WARNING - EMERGENCY STOP activated
+2026-06-14 23:10:51,232 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:10:51,232 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:10:51,232 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:10:51,604 - V3DDroneControl - INFO - Drone received gesture: MOVE_RIGHT (confidence=0.90)
+2026-06-14 23:10:51,866 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:10:51,867 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:10:51,867 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:10:51,867 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:10:52,240 - V3DDroneControl - INFO - Drone controller reset
+2026-06-14 23:10:52,241 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:10:52,241 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:10:52,241 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:10:52,609 - V3DDroneControl - INFO - Drone received gesture: ROTATE_RIGHT (confidence=0.90)
+2026-06-14 23:10:52,901 - V3DDroneControl - INFO - Gesture changed: EMERGENCY_STOP (confidence=5/8)
+2026-06-14 23:10:52,904 - V3DDroneControl - INFO - Gesture changed: MOVE_RIGHT (confidence=5/8)
+2026-06-14 23:11:09,263 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:11:09,264 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:11:09,264 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:11:09,264 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:11:09,630 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:11:09,630 - V3DDroneControl - INFO - TAKEOFF complete - now FLYING
+2026-06-14 23:11:09,631 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:11:09,631 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:11:09,631 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:11:10,006 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:11:10,006 - V3DDroneControl - INFO - TAKEOFF complete - now FLYING
+2026-06-14 23:11:10,069 - V3DDroneControl - INFO - Drone received gesture: LAND (confidence=0.90)
+2026-06-14 23:11:10,070 - V3DDroneControl - INFO - LANDING initiated
+2026-06-14 23:11:11,055 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:11:11,087 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:11:11,087 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:11:11,087 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:11:11,453 - V3DDroneControl - INFO - Drone received gesture: MOVE_FORWARD (confidence=0.90)
+2026-06-14 23:11:11,575 - V3DDroneControl - INFO - Drone received gesture: EMERGENCY_STOP (confidence=0.90)
+2026-06-14 23:11:11,575 - V3DDroneControl - WARNING - EMERGENCY STOP activated
+2026-06-14 23:11:11,637 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:11:11,638 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:11:11,638 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:11:12,006 - V3DDroneControl - INFO - Drone received gesture: MOVE_RIGHT (confidence=0.90)
+2026-06-14 23:11:12,267 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:11:12,268 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:11:12,268 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:11:12,268 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:11:12,641 - V3DDroneControl - INFO - Drone controller reset
+2026-06-14 23:11:12,643 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:11:12,643 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:11:12,643 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:11:13,007 - V3DDroneControl - INFO - Drone received gesture: ROTATE_RIGHT (confidence=0.90)
+2026-06-14 23:11:13,286 - V3DDroneControl - INFO - Gesture changed: EMERGENCY_STOP (confidence=5/8)
+2026-06-14 23:11:13,290 - V3DDroneControl - INFO - Gesture changed: MOVE_RIGHT (confidence=5/8)
+2026-06-14 23:11:35,560 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:11:35,561 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:11:35,561 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:11:35,918 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:11:35,918 - V3DDroneControl - INFO - TAKEOFF complete - now FLYING
+2026-06-14 23:11:35,978 - V3DDroneControl - INFO - Drone received gesture: LAND (confidence=0.90)
+2026-06-14 23:11:35,978 - V3DDroneControl - INFO - LANDING initiated
+2026-06-14 23:11:35,979 - V3DDroneControl - INFO - Drone landed
+2026-06-14 23:11:35,981 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:11:58,383 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:11:58,384 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:11:58,384 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:11:58,756 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:11:58,757 - V3DDroneControl - INFO - TAKEOFF complete - now FLYING
+2026-06-14 23:11:58,818 - V3DDroneControl - INFO - Drone received gesture: LAND (confidence=0.90)
+2026-06-14 23:11:58,818 - V3DDroneControl - INFO - LANDING initiated
+2026-06-14 23:11:58,819 - V3DDroneControl - INFO - Drone landed
+2026-06-14 23:11:58,820 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:12:03,946 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:12:03,947 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:12:03,947 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:12:03,947 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:12:04,323 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:12:04,323 - V3DDroneControl - INFO - TAKEOFF complete - now FLYING
+2026-06-14 23:12:04,324 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:12:04,325 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:12:04,325 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:12:04,692 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:12:04,692 - V3DDroneControl - INFO - TAKEOFF complete - now FLYING
+2026-06-14 23:12:04,755 - V3DDroneControl - INFO - Drone received gesture: LAND (confidence=0.90)
+2026-06-14 23:12:04,756 - V3DDroneControl - INFO - LANDING initiated
+2026-06-14 23:12:04,756 - V3DDroneControl - INFO - Drone landed
+2026-06-14 23:12:04,758 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:12:04,759 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:12:04,759 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:12:04,759 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:12:05,130 - V3DDroneControl - INFO - Drone received gesture: MOVE_FORWARD (confidence=0.90)
+2026-06-14 23:12:05,255 - V3DDroneControl - INFO - Drone received gesture: EMERGENCY_STOP (confidence=0.90)
+2026-06-14 23:12:05,255 - V3DDroneControl - WARNING - EMERGENCY STOP activated
+2026-06-14 23:12:05,317 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:12:05,317 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:12:05,317 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:12:05,686 - V3DDroneControl - INFO - Drone received gesture: MOVE_RIGHT (confidence=0.90)
+2026-06-14 23:12:05,946 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:12:05,947 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:12:05,948 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:12:05,948 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:12:06,313 - V3DDroneControl - INFO - Drone controller reset
+2026-06-14 23:12:06,315 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:12:06,315 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:12:06,315 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:12:06,684 - V3DDroneControl - INFO - Drone received gesture: ROTATE_RIGHT (confidence=0.90)
+2026-06-14 23:12:06,984 - V3DDroneControl - INFO - Gesture changed: EMERGENCY_STOP (confidence=5/8)
+2026-06-14 23:12:06,988 - V3DDroneControl - INFO - Gesture changed: MOVE_RIGHT (confidence=5/8)
+2026-06-14 23:13:22,689 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:13:22,690 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:13:22,690 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:13:22,690 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:13:23,059 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:13:23,059 - V3DDroneControl - INFO - TAKEOFF complete - now FLYING
+2026-06-14 23:13:23,060 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:13:23,061 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:13:23,061 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:13:23,426 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:13:23,426 - V3DDroneControl - INFO - TAKEOFF complete - now FLYING
+2026-06-14 23:13:23,487 - V3DDroneControl - INFO - Drone received gesture: LAND (confidence=0.90)
+2026-06-14 23:13:23,487 - V3DDroneControl - INFO - LANDING initiated
+2026-06-14 23:13:23,489 - V3DDroneControl - INFO - Drone landed
+2026-06-14 23:13:23,490 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:13:23,491 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:13:23,491 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:13:23,491 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:13:23,859 - V3DDroneControl - INFO - Drone received gesture: MOVE_FORWARD (confidence=0.90)
+2026-06-14 23:13:23,982 - V3DDroneControl - INFO - Drone received gesture: EMERGENCY_STOP (confidence=0.90)
+2026-06-14 23:13:23,982 - V3DDroneControl - WARNING - EMERGENCY STOP activated
+2026-06-14 23:13:24,045 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:13:24,046 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:13:24,046 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:13:24,416 - V3DDroneControl - INFO - Drone received gesture: MOVE_RIGHT (confidence=0.90)
+2026-06-14 23:13:24,677 - V3DDroneControl - INFO - Drone received gesture: HOVER (confidence=0.90)
+2026-06-14 23:13:24,678 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:13:24,678 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:13:24,678 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:13:25,047 - V3DDroneControl - INFO - Drone controller reset
+2026-06-14 23:13:25,048 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:13:25,048 - V3DDroneControl - INFO - Drone received gesture: TAKEOFF (confidence=0.90)
+2026-06-14 23:13:25,048 - V3DDroneControl - INFO - TAKEOFF initiated
+2026-06-14 23:13:25,419 - V3DDroneControl - INFO - Drone received gesture: ROTATE_RIGHT (confidence=0.90)
+2026-06-14 23:13:25,707 - V3DDroneControl - INFO - Gesture changed: EMERGENCY_STOP (confidence=5/8)
+2026-06-14 23:13:25,710 - V3DDroneControl - INFO - Gesture changed: MOVE_RIGHT (confidence=5/8)
+2026-06-14 23:13:36,692 - V3DDroneControl - INFO - Drone controller initialized
+2026-06-14 23:13:36,693 - V3DDroneControl - INFO - Drone received gesture: MOVE_RIGHT (confidence=0.75)

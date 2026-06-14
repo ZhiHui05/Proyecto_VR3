@@ -1,0 +1,35 @@
+# Drone Simulation Configuration
+
+drone:
+  initial_position:
+    x: 0.0
+    y: 0.0
+    z: 3.0
+
+  initial_orientation:
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+
+  physics:
+    translation_speed: 3.0
+    rotation_speed: 60.0
+    hover_damping: 0.95
+    max_velocity: 5.0
+    acceleration: 1.5
+    angular_acceleration: 30.0
+
+  constraints:
+    min_altitude: 0.5
+    max_altitude: 14.0
+    boundary_margin: 0.5
+
+  model:
+    body_radius: 0.3
+    arm_length: 0.5
+    arm_thickness: 0.04
+    prop_radius: 0.15
+    prop_thickness: 0.02
+    color_body: [0.2, 0.2, 0.6]
+    color_arms: [0.4, 0.4, 0.4]
+    color_props: [0.8, 0.8, 0.8]

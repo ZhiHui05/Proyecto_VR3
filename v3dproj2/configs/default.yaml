@@ -1,0 +1,53 @@
+# Main configuration for V3D Drone Control System
+
+camera:
+  index: 0
+  width: 1280
+  height: 720
+  fps: 30
+
+mediapipe:
+  static_image_mode: false
+  model_complexity: 1
+  min_detection_confidence: 0.7
+  min_tracking_confidence: 0.5
+  max_num_hands: 2
+  refine_face_landmarks: false
+
+tracking:
+  smoothing:
+    enabled: true
+    alpha: 0.3
+    window_size: 5
+  confidence_threshold: 0.5
+  loss_timeout: 1.0
+
+logging:
+  level: INFO
+  file: logs/app.log
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  console: true
+
+application:
+  headless: false
+  debug: true
+  record: false
+  output_dir: data/
+
+world:
+  dimensions:
+    x_min: -10.0
+    x_max: 10.0
+    y_min: -10.0
+    y_max: 10.0
+    z_min: 0.0
+    z_max: 15.0
+  ground_size: 20.0
+  grid_lines: true
+  grid_spacing: 1.0
+
+calibration:
+  chessboard_rows: 9
+  chessboard_cols: 6
+  square_size_mm: 25.0
+  output_dir: data/calibration/

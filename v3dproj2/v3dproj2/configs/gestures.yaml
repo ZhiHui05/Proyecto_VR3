@@ -1,0 +1,119 @@
+# Gesture Recognition Configuration
+
+gestures:
+  TAKEOFF:
+    description: "Raise both hands upward from low position"
+    conditions:
+      both_hands_detected: true
+      min_hands_above_shoulders: 1
+      vertical_movement_threshold: 0.15
+      min_confidence: 0.6
+      hold_frames: 5
+
+  LAND:
+    description: "Lower both hands downward from high position"
+    conditions:
+      both_hands_detected: true
+      max_hands_above_shoulders: 1
+      vertical_movement_threshold: -0.15
+      min_confidence: 0.6
+      hold_frames: 5
+
+  MOVE_FORWARD:
+    description: "Push both palms forward, hands extended"
+    conditions:
+      both_hands_detected: true
+      palms_forward: 0.7
+      forward_extension_ratio: 1.2
+      min_confidence: 0.6
+      hold_frames: 3
+
+  MOVE_BACKWARD:
+    description: "Pull both palms toward body"
+    conditions:
+      both_hands_detected: true
+      palms_toward_body: 0.7
+      backward_retraction_ratio: 0.8
+      min_confidence: 0.6
+      hold_frames: 3
+
+  MOVE_LEFT:
+    description: "Move right hand to the left side"
+    conditions:
+      both_hands_detected: true
+      lateral_displacement: -0.1
+      min_confidence: 0.6
+      hold_frames: 3
+
+  MOVE_RIGHT:
+    description: "Move right hand to the right side"
+    conditions:
+      both_hands_detected: true
+      lateral_displacement: 0.1
+      min_confidence: 0.6
+      hold_frames: 3
+
+  MOVE_UP:
+    description: "Raise dominant hand upward"
+    conditions:
+      both_hands_detected: true
+      dominant_hand_relative_height: 0.15
+      min_confidence: 0.6
+      hold_frames: 3
+
+  MOVE_DOWN:
+    description: "Lower dominant hand downward"
+    conditions:
+      both_hands_detected: true
+      dominant_hand_relative_height: -0.15
+      min_confidence: 0.6
+      hold_frames: 3
+
+  ROTATE_LEFT:
+    description: "Tilt hands - left hand lower, right hand higher"
+    conditions:
+      both_hands_detected: true
+      wrist_roll_angle: -15.0
+      min_confidence: 0.6
+      hold_frames: 5
+
+  ROTATE_RIGHT:
+    description: "Tilt hands - right hand lower, left hand higher"
+    conditions:
+      both_hands_detected: true
+      wrist_roll_angle: 15.0
+      min_confidence: 0.6
+      hold_frames: 5
+
+  HOVER:
+    description: "Hold hands steady at neutral position, palms down"
+    conditions:
+      both_hands_detected: true
+      hands_neutral: 0.8
+      min_movement: 0.05
+      hold_frames: 5
+
+  EMERGENCY_STOP:
+    description: "Cross wrists to form an X shape"
+    conditions:
+      both_hands_detected: true
+      wrists_crossed_threshold: 0.1
+      vertical_proximity: 0.05
+      min_confidence: 0.7
+      hold_frames: 8
+
+thresholds:
+  lateral_displacement_ratio: 0.15
+  vertical_displacement_ratio: 0.12
+  depth_displacement_ratio: 0.08
+  roll_angle_threshold: 12.0
+  hover_jitter_threshold: 0.06
+  crossover_distance: 0.08
+  shoulder_reference_y: 0.45
+  max_hand_distance: 1.5
+  min_hand_distance: 0.1
+
+debounce:
+  enabled: true
+  gesture_change_cooldown: 0.3
+  confidence_averaging_window: 8

@@ -1,0 +1,15 @@
+name: v3d-drone-control
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - numpy
+  - opencv
+  - scipy
+  - pyyaml
+  - pyqt
+  - pip:
+      - mediapipe
+      - open3d
